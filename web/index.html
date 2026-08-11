@@ -18,6 +18,7 @@
     <button class="tab" data-view="rencana">Rencana</button>
     <button class="tab" data-view="trending">Trending</button>
     <button class="tab" data-view="jurnal">Jurnal</button>
+    <button class="tab" data-view="panduan">Panduan</button>
   </nav>
   <div class="meta">
     <span id="last-update">memuat…</span>
@@ -48,8 +49,8 @@
         <div class="goal-fill" id="goal-fill"></div>
       </div>
       <div class="goal-ends">
-        <span id="goal-start">$85</span>
-        <span id="goal-end">$1.000</span>
+        <span id="goal-start">—</span>
+        <span id="goal-end">—</span>
       </div>
       <p class="hero-sub" id="goal-note">—</p>
     </div>
@@ -61,7 +62,7 @@
     <div class="card">
       <div class="card-head">
         <h2>Kurva ekuitas</h2>
-        <p class="card-sub">Dari modal awal $85, tiap titik satu trade yang ditutup. Titik terakhir termasuk floating.</p>
+        <p class="card-sub" id="kurva-sub">Tiap titik satu trade yang ditutup. Titik terakhir termasuk floating.</p>
       </div>
       <div class="chart-wrap">
         <svg id="equity-chart" class="chart" role="img" aria-label="kurva ekuitas"></svg>
@@ -161,6 +162,49 @@
       <p class="card-sub">Ditulis oleh order.py tiap kali setup disiapkan. Kolom "digambar" menandai apakah aturan gambar-dulu dipatuhi.</p>
     </div>
     <div class="scroll-x"><table id="plans-table"></table></div>
+  </div>
+</section>
+
+<!-- ============ PANDUAN ============ -->
+<section class="view" id="view-panduan">
+  <div class="card">
+    <div class="card-head">
+      <h2>Rapor terhadap lima angka</h2>
+      <p class="card-sub" id="panduan-sumber"></p>
+    </div>
+    <div id="rapor"></div>
+    <div class="note" id="rapor-catatan"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Checklist sebelum menekan tombol</h2>
+      <p class="card-sub">Enam pertanyaan. Bila satu saja dijawab tidak, jangan masuk. <code>order.py</code> menjalankan ini otomatis dan menolak order yang gagal.</p>
+    </div>
+    <ol class="rules" id="checklist-panduan"></ol>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Fase yang sedang dijalani</h2></div>
+    <div id="fase-list"></div>
+  </div>
+
+  <div id="playbook-list"></div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Empat cara merusak akun ini</h2>
+      <p class="card-sub">Bukan spekulasi — keempatnya sudah muncul dalam 48 jam pertama.</p>
+    </div>
+    <div id="perusak-list"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Ritual Minggu malam — 20 menit</h2>
+    </div>
+    <ol class="rules" id="ritual-list"></ol>
+    <div class="note" id="ritual-penutup"></div>
   </div>
 </section>
 

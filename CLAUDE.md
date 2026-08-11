@@ -50,6 +50,7 @@ core/auth.py           scrypt, sesi di memori, penguncian brute-force
 core/bybit.py          klien Bybit v5 BACA-SAJA
 core/screening.py      memanggil ~/trading-exec/screener.py per horizon + checklist
 core/trending.py       lonjakan volume & pergerakan 24 jam
+core/panduan.py        membaca panduan.json + menilai lima angka
 core/monitor_bridge.py menjalankan ~/trading-exec/monitor.py tiap 5 menit
 web/                   index.html · style.css · app.js — tanpa framework, tanpa build
 ```
@@ -67,7 +68,9 @@ Repo ini **tidak berdiri sendiri**. Butuh berkas berikut di `~/trading-exec/`:
 | `tv_mcp.py` | klien Python untuk TradingView MCP |
 | `bybit_trade.py` | eksekutor order (dipanggil oleh order.py) |
 
-Plus `~/.bybit_keys` berisi `KEY=` dan `SECRET=`.
+Plus `~/.bybit_keys` berisi `KEY=` dan `SECRET=`, dan `~/trading-exec/panduan.json`
+berisi aturan panduan (playbook, checklist, fase, ambang lima angka, `modal_awal`,
+`target`). Berkas panduan sengaja di luar repo karena repo publik.
 
 **Jangan menyalin logika dari berkas-berkas itu ke dalam repo ini.** Kalau
 screening perlu diubah, ubah `screener.py`; dashboard memanggilnya, tidak
@@ -106,5 +109,7 @@ Untuk skrip: `Authorization: Bearer $(cat ~/.trading-dashboard-token)`.
   Dia membaca chart yang sedang aktif; set chart dulu lewat `chart_set_symbol`.
 - **Akun UTA cross-only.** `switch-isolated` akan membalas `100028 unified
   account is forbidden` — itu wajar, bukan kegagalan.
+- **Jangan menuliskan `modal_awal` sebagai angka tetap.** Pernah tertanam $85
+  di dua tempat dan bertahan lama tanpa ketahuan. Sumbernya `panduan.json`.
 - **Noise floating point di perintah salin.** Pakai `Number(v.toPrecision(8))`
   sebelum menaruh harga di string perintah.

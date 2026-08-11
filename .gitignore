@@ -6,6 +6,11 @@ data/
 # Jangan pernah ikut ter-commit: kunci & token hidup di luar repo, tapi
 # baris ini menjaga kalau suatu saat ada yang menyalinnya ke sini.
 .bybit_keys
+.trading-dashboard-auth
 .trading-dashboard-token
+
+# Isi panduan memuat riwayat trade dan ukuran akun sungguhan. Repo ini publik,
+# jadi isinya hidup di ~/trading-exec/panduan.json — repo hanya penampilnya.
+panduan.json
 *.token
 .env

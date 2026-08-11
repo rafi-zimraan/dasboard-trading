@@ -18,8 +18,14 @@ BASE = "https://api.bybit.com"
 RECV = "15000"
 _offset = 0
 
-MODAL_AWAL = 85.0     # setoran pertama akun ini
-TARGET = 1000.0       # goal yang sedang dikejar
+# Modal awal dan target dibaca dari panduan (satu sumber kebenaran), bukan
+# ditulis ulang di sini. Angka $85 yang sempat dipakai keliru: rekonsiliasi
+# wallet ($77,22) dikurangi realized kumulatif ($21,55) memberi setoran ~$55,7,
+# yang cocok dengan $59 di panduan, bukan $85.
+from . import panduan as _panduan
+
+MODAL_AWAL = _panduan.modal_awal()
+TARGET = _panduan.target()
 
 
 def _keys() -> tuple[str, str]:

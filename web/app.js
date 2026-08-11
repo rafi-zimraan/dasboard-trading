@@ -156,6 +156,12 @@ async function muatRingkasan() {
   t.appendChild(tile('Winrate', s.total ? s.winrate.toFixed(0) + '%' : '—', `${s.menang}M / ${s.kalah}K dari ${s.total} trade`));
   t.appendChild(tile('Profit factor', s.total ? (isFinite(s.profit_factor) ? s.profit_factor.toFixed(2) : '∞') : '—', 'untung kotor ÷ rugi kotor'));
 
+  // Modal awal datang dari panduan; jangan pernah menuliskannya sebagai
+  // angka tetap di HTML — pernah salah $85 dan diam-diam bertahan lama.
+  $('#kurva-sub').textContent =
+    `Dari modal awal ${uang(w.modal_awal, 0)}, tiap titik satu trade yang ditutup. `
+    + 'Titik terakhir termasuk floating.';
+
   gambarKurva(a.kurva);
 
   const rm = $('#risk-meter'); rm.innerHTML = '';
@@ -370,6 +376,108 @@ async function muatJurnal(a) {
   } catch (e) { /* file rencana belum ada */ }
 }
 
+/* ================= panduan ================= */
+async function muatPanduan() {
+  let d;
+  try { d = await ambil('/api/aturan'); }
+  catch (e) { $('#rapor').innerHTML = `<p class="err">${e.message}</p>`; return; }
+
+  if (d.error) { $('#rapor').innerHTML = `<p class="err">${d.error}</p>`; return; }
+  $('#panduan-sumber').textContent = d.sumber || '';
+
+  // --- rapor lima angka ---
+  const r = $('#rapor'); r.innerHTML = '';
+  const fmtNilai = (b) => {
+    if (b.nilai == null) return '—';
+    if (b.kunci === 'winrate') return b.nilai.toFixed(0) + '%';
+    if (b.kunci === 'pelanggaran') return String(b.nilai);
+    return b.nilai.toFixed(2);
+  };
+  d.rapor.baris.forEach(b => {
+    const row = el('div', 'rapor-row');
+    row.appendChild(el('span', 'rapor-nama', b.nama));
+    row.appendChild(el('span', 'rapor-nilai s-' + b.status, fmtNilai(b)));
+    const ket = el('span', 'rapor-ket');
+    ket.appendChild(el('b', null, `sehat ${b.sehat} · bahaya ${b.bahaya}. `));
+    ket.appendChild(document.createTextNode(b.status === 'bahaya' ? b.alasan : b.arti));
+    row.appendChild(ket);
+    r.appendChild(row);
+  });
+  $('#rapor-catatan').textContent =
+    (d.rapor.cukup_data ? '' : `Baru ${d.rapor.total_trade} trade selesai. `) + (d.rapor.catatan || '');
+
+  // --- checklist ---
+  const cl = $('#checklist-panduan'); cl.innerHTML = '';
+  (d.checklist || []).forEach(([q, ket]) => {
+    const li = el('li');
+    li.appendChild(el('b', null, q));
+    li.appendChild(el('span', null, ket));
+    cl.appendChild(li);
+  });
+
+  // --- fase ---
+  const fl = $('#fase-list'); fl.innerHTML = '';
+  (d.fase || []).forEach(f => {
+    const kini = f.nama === d.rapor.fase_kini;
+    const n = el('div', 'fase-item' + (kini ? ' kini' : ''));
+    const h = el('h3', null, f.nama);
+    if (kini) h.appendChild(el('span', 'badge', `sedang di sini · ${d.rapor.total_trade} trade`));
+    n.appendChild(h);
+    n.appendChild(el('p', null, f.isi));
+    const u = el('p', 'ukuran');
+    u.appendChild(el('b', null, 'Ukuran berhasil: '));
+    u.appendChild(document.createTextNode(f.ukuran));
+    n.appendChild(u);
+    fl.appendChild(n);
+  });
+
+  // --- playbook ---
+  const pl = $('#playbook-list'); pl.innerHTML = '';
+  (d.playbook || []).forEach(pb => {
+    const c = el('div', 'card');
+    const head = el('div', 'card-head');
+    head.appendChild(el('h2', null, `Playbook ${pb.kode} — ${pb.nama}`));
+    head.appendChild(el('p', 'card-sub', pb.catatan || ''));
+    c.appendChild(head);
+    const dl = el('dl');
+    (pb.baris || []).forEach(([k, v]) => {
+      const row = el('div', 'pb-baris');
+      row.appendChild(el('dt', null, k));
+      row.appendChild(el('dd', null, v));
+      dl.appendChild(row);
+    });
+    c.appendChild(dl);
+    if (pb.pelajaran) c.appendChild(el('div', 'pb-pelajaran', pb.pelajaran));
+    pl.appendChild(c);
+  });
+
+  // --- perusak ---
+  const ps = $('#perusak-list'); ps.innerHTML = '';
+  (d.perusak || []).forEach((x, i) => {
+    const n = el('div', 'perusak-item');
+    const h = el('h3');
+    h.appendChild(el('span', 'no', String(i + 1)));
+    h.appendChild(document.createTextNode(x.judul));
+    n.appendChild(h);
+    n.appendChild(el('p', null, x.isi));
+    if (x.kejadian) n.appendChild(el('p', 'kejadian', x.kejadian));
+    ps.appendChild(n);
+  });
+
+  // --- ritual ---
+  const rl = $('#ritual-list'); rl.innerHTML = '';
+  (d.ritual || []).forEach(([judul, ket]) => {
+    const li = el('li');
+    li.appendChild(el('b', null, judul));
+    const s = el('span');
+    if (ket.startsWith('python3')) s.appendChild(el('code', null, ket));
+    else s.textContent = ket;
+    li.appendChild(s);
+    rl.appendChild(li);
+  });
+  $('#ritual-penutup').textContent = d.ritual_penutup || '';
+}
+
 /* ================= kerangka ================= */
 let akunCache = null;
 
@@ -398,6 +506,10 @@ $('#tabs').addEventListener('click', (e) => {
   if (b.dataset.view === 'trending' && !$('#volspike').dataset.loaded) {
     $('#volspike').dataset.loaded = '1';
     muatTrending();
+  }
+  if (b.dataset.view === 'panduan' && !$('#rapor').dataset.loaded) {
+    $('#rapor').dataset.loaded = '1';
+    muatPanduan();
   }
 });
 

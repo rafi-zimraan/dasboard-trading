@@ -27,7 +27,7 @@ from urllib.parse import parse_qs, urlparse
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-from core import auth, bybit, monitor_bridge, screening, trending  # noqa: E402
+from core import auth, bybit, monitor_bridge, panduan, screening, trending  # noqa: E402
 
 WEB = HERE / "web"
 PLANS = Path.home() / "trading-exec" / "trade_plans.json"
@@ -80,6 +80,15 @@ def rencana(horizon: str) -> dict:
             "ekuitas": eq, "risiko_terbuka": risiko_terbuka}
 
 
+def aturan() -> dict:
+    """Aturan dari panduan + lima angka yang dinilai atas data akun nyata."""
+    closed = bybit.closed_pnl()
+    # Pelanggaran = rencana yang dikirim tanpa setup digambar lebih dulu.
+    pelanggaran = sum(1 for r in rencana_tersimpan()
+                      if r.get("dikirim") and not r.get("digambar", True))
+    return panduan.semua(bybit.statistik(closed), pelanggaran)
+
+
 def rencana_tersimpan() -> list:
     if not PLANS.exists():
         return []
@@ -96,6 +105,7 @@ ROUTES = {
     "/api/trending": lambda q: trending.snapshot(force=q.get("force") == ["1"]),
     "/api/rencana": lambda q: rencana(q.get("horizon", ["harian"])[0]),
     "/api/plans": lambda q: rencana_tersimpan(),
+    "/api/aturan": lambda q: aturan(),
 }
 
 MIME = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",

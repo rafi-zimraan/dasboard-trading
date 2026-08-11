@@ -76,6 +76,7 @@ yang tidak Anda percayai.
 | **Rencana** | Screening harian (1H+4H), mingguan (Daily), bulanan (Weekly) — tiap kandidat lengkap dengan level, sizing, checklist 6 pertanyaan, dan perintah `order.py` siap salin |
 | **Trending** | Koin dengan perhatian yang sedang datang (volume vs MA12 koin itu sendiri), plus naik/turun terbesar |
 | **Jurnal** | Statistik trade selesai dari closed-PnL Bybit + riwayat rencana yang pernah dibuat |
+| **Panduan** | Aturan dari panduan trading — tiga playbook, checklist enam pertanyaan, empat cara merusak akun, tiga fase — plus rapor lima angka yang **dinilai langsung atas data akun nyata** |
 
 ## Aturan yang dipaksakan mesin, bukan niat
 
@@ -127,6 +128,26 @@ trading-dashboard/
 │   └── monitor_bridge.py  # menjalankan monitor.py otomatis
 └── web/                   # index.html · style.css · app.js (tanpa framework)
 ```
+
+## Panduan (tab Aturan)
+
+Tab Panduan membaca `~/trading-exec/panduan.json`. Berkas itu **sengaja di luar
+repo**: isinya memuat riwayat trade dan ukuran akun sungguhan, sedangkan repo
+ini publik. Yang ada di repo hanya penampil dan penilainya.
+
+Kalau berkas itu tidak ada, tab Panduan menjelaskan cara membuatnya, bukan
+menampilkan aturan karangan sendiri — aturan yang salah lebih berbahaya
+daripada aturan yang absen.
+
+`modal_awal` dan `target` juga dibaca dari sana, jadi hanya ada satu tempat yang
+menentukannya. (Angka $85 yang sempat tertanam di kode keliru: wallet $77,22
+dikurangi realized kumulatif $21,55 memberi setoran ~$55,7 — cocok dengan $59 di
+panduan, bukan $85.)
+
+Rapor lima angka menilai statistik akun terhadap ambang di panduan, termasuk
+ambang yang tidak enak didengar: win rate **di atas 80% ditandai bahaya**, bukan
+prestasi, karena biasanya berarti untung diambil terlalu cepat dan rugi ditahan
+terlalu lama.
 
 ## Ketergantungan di luar repo
 
