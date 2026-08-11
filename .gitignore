@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+data/
+*.log
+
+# Jangan pernah ikut ter-commit: kunci & token hidup di luar repo, tapi
+# baris ini menjaga kalau suatu saat ada yang menyalinnya ke sini.
+.bybit_keys
+.trading-dashboard-token
+*.token
+.env

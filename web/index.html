@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard Trading — target $1.000</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="dot" id="status-dot"></span>
+    <h1>Dashboard Trading</h1>
+  </div>
+  <nav class="tabs" id="tabs">
+    <button class="tab is-active" data-view="ringkasan">Ringkasan</button>
+    <button class="tab" data-view="rencana">Rencana</button>
+    <button class="tab" data-view="trending">Trending</button>
+    <button class="tab" data-view="jurnal">Jurnal</button>
+  </nav>
+  <div class="meta">
+    <span id="last-update">memuat…</span>
+    <button id="refresh" class="btn">Perbarui</button>
+  </div>
+</header>
+
+<main>
+
+<!-- ============ RINGKASAN ============ -->
+<section class="view is-active" id="view-ringkasan">
+
+  <div class="hero">
+    <div class="hero-main">
+      <p class="label">Ekuitas sekarang</p>
+      <p class="hero-figure" id="equity">—</p>
+      <p class="hero-sub" id="equity-sub">—</p>
+    </div>
+    <div class="hero-goal">
+      <div class="goal-head">
+        <span class="label">Perjalanan ke target</span>
+        <span class="goal-pct" id="goal-pct">—</span>
+      </div>
+      <div class="goal-track" role="img" aria-label="progres menuju target 1000 dolar">
+        <div class="goal-fill" id="goal-fill"></div>
+      </div>
+      <div class="goal-ends">
+        <span id="goal-start">$85</span>
+        <span id="goal-end">$1.000</span>
+      </div>
+      <p class="hero-sub" id="goal-note">—</p>
+    </div>
+  </div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head">
+        <h2>Kurva ekuitas</h2>
+        <p class="card-sub">Dari modal awal $85, tiap titik satu trade yang ditutup. Titik terakhir termasuk floating.</p>
+      </div>
+      <div class="chart-wrap">
+        <svg id="equity-chart" class="chart" role="img" aria-label="kurva ekuitas"></svg>
+        <div class="tooltip" id="equity-tip" hidden></div>
+      </div>
+      <details class="table-view">
+        <summary>Lihat sebagai tabel</summary>
+        <div class="scroll-x"><table id="equity-table"></table></div>
+      </details>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Pemakaian risiko</h2>
+        <p class="card-sub">Plafon rumah: 5% per trade, 15% total. Dihitung dari ekuitas hari ini.</p>
+      </div>
+      <div id="risk-meter"></div>
+      <div id="risk-note" class="note"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Posisi terbuka</h2>
+      <p class="card-sub">Risiko sisa = jarak ke SL. Nol berarti SL sudah melewati entry ke sisi profit.</p>
+    </div>
+    <div class="scroll-x"><table id="pos-table"></table></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Aksi dari monitor</h2>
+      <p class="card-sub">Dihasilkan otomatis oleh monitor.py tiap 5 menit — sumber aturan yang sama dengan notifikasi pagi.</p>
+    </div>
+    <div id="aksi-list"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Order aktif</h2>
+    </div>
+    <div class="scroll-x"><table id="order-table"></table></div>
+  </div>
+</section>
+
+<!-- ============ RENCANA ============ -->
+<section class="view" id="view-rencana">
+  <div class="seg" id="horizon-seg">
+    <button class="seg-btn is-active" data-h="harian">Harian <span>1H · 4H</span></button>
+    <button class="seg-btn" data-h="mingguan">Mingguan <span>Daily</span></button>
+    <button class="seg-btn" data-h="bulanan">Bulanan <span>Weekly</span></button>
+  </div>
+
+  <div class="rule-banner">
+    <strong>Aturan wajib:</strong> tidak ada order yang boleh dipasang sebelum setup-nya digambar di TradingView.
+    Tombol di bawah menyalin perintah <code>order.py</code> — perintah itu menggambar dulu, menjalankan checklist,
+    baru mengirim order. Kalau TradingView mati, order ditolak.
+  </div>
+
+  <div id="rencana-body"><p class="empty">Memuat screening…</p></div>
+</section>
+
+<!-- ============ TRENDING ============ -->
+<section class="view" id="view-trending">
+  <div class="card">
+    <div class="card-head">
+      <h2>Perhatian yang sedang datang</h2>
+      <p class="card-sub">Volume hari ini dibanding rata-rata 12 hari koin itu sendiri. Lebih berguna daripada daftar "paling naik" — yang sudah naik 40% biasanya sudah selesai bergerak.</p>
+    </div>
+    <div id="volspike"></div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><h2>Naik terbesar 24 jam</h2></div>
+      <div class="scroll-x"><table id="gainers"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Turun terbesar 24 jam</h2></div>
+      <div class="scroll-x"><table id="losers"></table></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ JURNAL ============ -->
+<section class="view" id="view-jurnal">
+  <div class="tiles" id="stat-tiles"></div>
+  <div class="card">
+    <div class="card-head">
+      <h2>Trade yang sudah ditutup</h2>
+      <p class="card-sub">Langsung dari closed-PnL Bybit, bukan catatan manual.</p>
+    </div>
+    <div class="scroll-x"><table id="closed-table"></table></div>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <h2>Rencana tercatat</h2>
+      <p class="card-sub">Ditulis oleh order.py tiap kali setup disiapkan. Kolom "digambar" menandai apakah aturan gambar-dulu dipatuhi.</p>
+    </div>
+    <div class="scroll-x"><table id="plans-table"></table></div>
+  </div>
+</section>
+
+</main>
+
+<script src="/app.js"></script>
+</body>
+</html>
