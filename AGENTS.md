@@ -18,8 +18,9 @@ yang secara teknis mudah dilakukan.
 | Server **tidak boleh** mengirim order | Eksekusi hanya lewat `~/trading-exec/order.py` di terminal, yang mewajibkan setup digambar dulu. Tombol "entry" di web menghapus jeda yang justru jadi pengamannya. |
 | Checklist 6 pertanyaan **tidak boleh** dilonggarkan | RR ≥ 1:2 · risiko < 5% ekuitas · total < 15% · SL di luar struktur · likuidasi lebih jauh dari SL · setup punya nama playbook. |
 | Risiko **selalu** = posisi berjalan + order menggantung | Order limit yang belum terisi tetap mengunci risiko begitu tersentuh. |
-| Token auth **selalu** aktif, termasuk localhost | Halaman memuat isi akun. Tidak ada mode "tanpa token biar praktis". |
-| Kunci API **tidak pernah** masuk repo | Hidup di `~/.bybit_keys` dan `~/.trading-dashboard-token`. |
+| Login **selalu** aktif, termasuk localhost | Halaman memuat isi akun. Tidak ada mode "tanpa login biar praktis". Jangan melonggarkan penguncian brute-force atau melemahkan parameter scrypt. |
+| Rahasia **tidak pernah** masuk repo | `~/.bybit_keys`, `~/.trading-dashboard-auth`, `~/.trading-dashboard-token`. Repo ini publik: password tidak boleh muncul di kode, dokumentasi, pesan commit, atau argumen perintah. |
+| CSP ketat **tidak boleh** dilonggarkan | `default-src 'self'`. Jangan tambahkan skrip inline, `style="..."` inline, atau aset CDN — pakai kelas CSS. |
 | Logika screening **tidak boleh** disalin ke repo ini | Satu sumber kebenaran: `~/trading-exec/screener.py`. Dua salinan yang bisa berbeda lebih berbahaya daripada satu ketergantungan path. |
 
 Kalau sebuah permintaan bertabrakan dengan tabel di atas, **jangan diam-diam
@@ -28,7 +29,8 @@ menurutinya**. Sampaikan tabrakannya, tawarkan jalan yang tidak melanggar.
 ## Cara menjalankan & memverifikasi
 
 ```bash
-./run.sh                          # lokal, mencetak URL + token
+python3 setup_auth.py             # sekali di awal: pasang email + password
+./run.sh                          # lokal
 ./run.sh --tunnel                 # + URL publik Cloudflare
 python3 server.py --no-monitor    # tanpa monitor otomatis
 ```
@@ -37,10 +39,12 @@ Verifikasi cepat setelah mengubah `server.py` atau `core/`:
 
 ```bash
 TOK=$(cat ~/.trading-dashboard-token)
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8787/api/akun          # harus 401
-curl -s -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8787/api/akun?t=$TOK" # harus 200
+B=http://127.0.0.1:8787
+curl -s -o /dev/null -w "%{http_code}\n" "$B/api/akun"                    # harus 401
+curl -s -o /dev/null -w "%{http_code}\n" "$B/"                            # harus 302 -> /login
+curl -s -H "Authorization: Bearer $TOK" -o /dev/null -w "%{http_code}\n" "$B/api/akun"  # harus 200
 for e in akun monitor trending "rencana?horizon=harian"; do
-  curl -s -o /dev/null -w "$e %{http_code}\n" "http://127.0.0.1:8787/api/$e?t=$TOK"
+  curl -s -H "Authorization: Bearer $TOK" -o /dev/null -w "$e %{http_code}\n" "$B/api/$e"
 done
 ```
 

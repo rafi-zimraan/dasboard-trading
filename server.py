@@ -4,6 +4,7 @@
   python3 server.py                # buka http://127.0.0.1:8787
   python3 server.py --port 9000
   python3 server.py --no-monitor   # jangan jalankan monitor.py otomatis
+  python3 setup_auth.py            # pasang / ganti email + password login
 
 Server ini TIDAK BISA mengirim order. Satu-satunya jalur untuk membuka posisi
 tetap `python3 ~/trading-exec/order.py`, yang mewajibkan setup digambar dulu di
@@ -26,35 +27,11 @@ from urllib.parse import parse_qs, urlparse
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-from core import bybit, monitor_bridge, screening, trending  # noqa: E402
+from core import auth, bybit, monitor_bridge, screening, trending  # noqa: E402
 
 WEB = HERE / "web"
 PLANS = Path.home() / "trading-exec" / "trade_plans.json"
-TOKEN_FILE = Path.home() / ".trading-dashboard-token"
-
-
-def token() -> str:
-    """Token wajib untuk SEMUA permintaan.
-
-    Halaman ini memuat isi akun sungguhan — ekuitas, posisi, SL, riwayat PnL.
-    Begitu diekspos lewat tunnel, URL saja bukan pengaman: alamat tunnel bocor
-    lewat riwayat browser, header referer, dan pemindai otomatis. Token dipakai
-    selalu, bahkan di localhost, supaya tidak ada mode "kebetulan tanpa kunci".
-    """
-    t = os.environ.get("DASH_TOKEN", "").strip()
-    if t:
-        return t
-    if TOKEN_FILE.exists():
-        t = TOKEN_FILE.read_text().strip()
-        if t:
-            return t
-    t = secrets.token_urlsafe(24)
-    TOKEN_FILE.write_text(t)
-    TOKEN_FILE.chmod(0o600)
-    return t
-
-
-TOKEN = token()
+TOKEN = auth.token()
 
 
 def akun() -> dict:
@@ -139,45 +116,141 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Robots-Tag", "noindex, nofollow")
         self.send_header("Referrer-Policy", "no-referrer")
+        # Tidak ada skrip/gaya inline di halaman ini, jadi CSP boleh seketat
+        # mungkin: skrip pihak ketiga yang berhasil disuntikkan tetap tidak
+        # akan dieksekusi, dan data tidak bisa dikirim ke domain lain.
+        self.send_header("Content-Security-Policy",
+                         "default-src 'self'; script-src 'self'; style-src 'self'; "
+                         "img-src 'self' data:; connect-src 'self'; form-action 'self'; "
+                         "frame-ancestors 'none'; base-uri 'none'")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
         for k, v in (extra or {}).items():
             self.send_header(k, v)
         self.end_headers()
-        self.wfile.write(body)
+        if body:
+            self.wfile.write(body)
 
-    def _terotorisasi(self, q: dict) -> bool:
-        """Token boleh datang dari cookie, query ?t=, atau header Authorization.
+    # --- identitas & sesi --------------------------------------------------
 
-        compare_digest dipakai supaya waktu perbandingan tidak membocorkan
-        tebakan yang hampir benar.
-        """
-        for kandidat in (
-            (self.headers.get("Cookie") or "").split("dash_token=")[-1].split(";")[0].strip(),
-            (q.get("t") or [""])[0],
-            (self.headers.get("Authorization") or "").removeprefix("Bearer ").strip(),
-        ):
-            if kandidat and secrets.compare_digest(kandidat, TOKEN):
-                return True
-        return False
+    def _ip(self) -> str:
+        """IP asli. Di balik cloudflared, alamat soket selalu 127.0.0.1 —
+        tanpa header ini seluruh dunia terhitung satu alamat dan penguncian
+        brute-force jadi tidak ada artinya."""
+        for h in ("CF-Connecting-IP", "X-Forwarded-For"):
+            v = self.headers.get(h)
+            if v:
+                return v.split(",")[0].strip()
+        return self.client_address[0]
+
+    def _cookie(self, nama: str) -> str:
+        for bagian in (self.headers.get("Cookie") or "").split(";"):
+            k, _, v = bagian.strip().partition("=")
+            if k == nama:
+                return v.strip()
+        return ""
+
+    def _https(self) -> bool:
+        return (self.headers.get("X-Forwarded-Proto") or "").lower() == "https"
+
+    def _set_sesi(self, sid: str) -> str:
+        aman = "; Secure" if self._https() else ""
+        return (f"sid={sid}; Path=/; Max-Age={auth.SESI_UMUR}; "
+                f"HttpOnly; SameSite=Strict{aman}")
+
+    def _terotorisasi(self) -> bool:
+        if auth.sesi_sah(self._cookie("sid")):
+            return True
+        # Jalur skrip (curl/cron): token acak 32 byte, bukan password.
+        bearer = (self.headers.get("Authorization") or "").removeprefix("Bearer ").strip()
+        return bool(bearer and secrets.compare_digest(bearer, TOKEN))
+
+    def _halaman_login(self, pesan: str = "", code: int = 200):
+        html = (WEB / "login.html").read_text()
+        blok = ""
+        if pesan:
+            aman = (pesan.replace("&", "&amp;").replace("<", "&lt;")
+                    .replace(">", "&gt;").replace('"', "&quot;"))
+            blok = f'<div class="login-alert"><span class="ic">!</span><span>{aman}</span></div>'
+        html = html.replace("<!--PESAN-->", blok).replace("<!--CSRF-->", "")
+        self._kirim(code, html.encode(), "text/html; charset=utf-8")
+
+    # --- POST: hanya login & logout, tidak pernah order --------------------
+
+    def do_POST(self):  # noqa: N802
+        path = urlparse(self.path).path
+
+        if path == "/logout":
+            auth.hapus_sesi(self._cookie("sid"))
+            self._kirim(302, b"", "text/plain",
+                        {"Location": "/login", "Set-Cookie": "sid=; Path=/; Max-Age=0"})
+            return
+
+        if path != "/login":
+            self._kirim(404, b"tidak ada", "text/plain; charset=utf-8")
+            return
+
+        ip = self._ip()
+        sisa = auth.sisa_kunci(ip)
+        if sisa:
+            self._halaman_login(
+                f"Terlalu banyak percobaan gagal. Coba lagi dalam {sisa} detik.", 429)
+            return
+
+        panjang = int(self.headers.get("Content-Length") or 0)
+        if panjang > 4096:                       # form login tidak pernah sebesar ini
+            self._kirim(413, b"terlalu besar", "text/plain; charset=utf-8")
+            return
+        form = parse_qs(self.rfile.read(panjang).decode("utf-8", "replace"))
+        email = (form.get("email") or [""])[0]
+        password = (form.get("password") or [""])[0]
+
+        if not auth.ada_kredensial():
+            self._halaman_login(
+                "Kredensial belum dipasang. Jalankan: python3 setup_auth.py", 503)
+            return
+
+        if auth.verifikasi(email, password):
+            auth.bersihkan_gagal(ip)
+            sid = auth.buat_sesi(email, ip)
+            print(f"  login berhasil: {email} dari {ip}")
+            self._kirim(302, b"", "text/plain",
+                        {"Location": "/", "Set-Cookie": self._set_sesi(sid)})
+            return
+
+        dikunci = auth.catat_gagal(ip)
+        print(f"  LOGIN GAGAL dari {ip}" + (f" — dikunci {dikunci}s" if dikunci else ""))
+        pesan = ("Email atau password salah."
+                 + (f" Alamat Anda dikunci {dikunci} detik." if dikunci else ""))
+        self._halaman_login(pesan, 401)
 
     def do_GET(self):  # noqa: N802
         u = urlparse(self.path)
         path = u.path
         q = parse_qs(u.query)
 
-        if not self._terotorisasi(q):
-            body = b"401 - token tidak sah. Buka lewat tautan lengkap yang dicetak server."
-            self._kirim(401, body, "text/plain; charset=utf-8")
+        if path == "/login":
+            if self._terotorisasi():
+                self._kirim(302, b"", "text/plain", {"Location": "/"})
+                return
+            self._halaman_login()
             return
 
-        # Token yang datang lewat URL langsung dipindahkan ke cookie, lalu URL
-        # dibersihkan — supaya token tidak menetap di riwayat browser dan tidak
-        # ikut tersalin saat alamat dibagikan.
-        if q.get("t") and path == "/":
-            self._kirim(302, b"", "text/plain", {
-                "Location": "/",
-                "Set-Cookie": f"dash_token={TOKEN}; Path=/; Max-Age=2592000; "
-                              f"HttpOnly; SameSite=Lax",
-            })
+        if path == "/logout":
+            auth.hapus_sesi(self._cookie("sid"))
+            self._kirim(302, b"", "text/plain",
+                        {"Location": "/login", "Set-Cookie": "sid=; Path=/; Max-Age=0"})
+            return
+
+        # style.css dibutuhkan halaman login itu sendiri, jadi boleh tanpa sesi.
+        # Isinya tidak mengandung data akun.
+        if not self._terotorisasi() and path != "/style.css":
+            if path.startswith("/api/"):
+                self._kirim(401, json.dumps({"error": "belum masuk"}).encode(),
+                            "application/json; charset=utf-8")
+            else:
+                self._kirim(302, b"", "text/plain", {"Location": "/login"})
             return
 
         if path in ROUTES:
@@ -221,10 +294,20 @@ def main() -> int:
     # mesin ini dan menyambung ke localhost, jadi port-nya tidak perlu terbuka
     # ke jaringan. Pakai --lan hanya kalau memang mau diakses dari HP satu wifi.
     host = "0.0.0.0" if "--lan" in sys.argv else "127.0.0.1"
+    # Sapu sesi & catatan kegagalan yang sudah lewat, tiap 10 menit.
+    def sapu():
+        while True:
+            time.sleep(600)
+            auth.sapu_kadaluarsa()
+    threading.Thread(target=sapu, daemon=True).start()
+
     srv = ThreadingHTTPServer((host, port), Handler)
-    print(f"\n  Dashboard trading  ->  http://127.0.0.1:{port}/?t={TOKEN}\n")
-    print(f"  Token tersimpan di {TOKEN_FILE} (chmod 600).")
-    print("  Semua permintaan wajib membawa token — termasuk dari localhost.\n")
+    print(f"\n  Dashboard trading  ->  http://127.0.0.1:{port}\n")
+    if auth.ada_kredensial():
+        print("  Masuk dengan email + password yang sudah dipasang.")
+    else:
+        print("  !! KREDENSIAL BELUM DIPASANG — jalankan dulu: python3 setup_auth.py")
+    print(f"  Token skrip (curl/cron): Authorization: Bearer <isi {auth.TOKEN_FILE}>\n")
     print("  Server ini hanya membaca. Untuk membuka posisi:")
     print("  python3 ~/trading-exec/order.py SYMBOL side qty lev entry sl tp1 [tp2] --live\n")
     try:

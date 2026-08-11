@@ -16,25 +16,57 @@ Tanpa dependensi pip. Butuh Python 3.9+, Node.js (untuk TradingView MCP), dan
 
 ## Akses & keamanan
 
-Halaman ini memuat isi akun sungguhan: ekuitas, posisi, SL, riwayat PnL. Karena
-itu **setiap permintaan wajib membawa token**, termasuk dari localhost — tidak
-ada mode "tanpa kunci biar praktis".
+Halaman ini memuat isi akun sungguhan: ekuitas, posisi, SL, riwayat PnL. Semua
+akses lewat login; tidak ada mode "tanpa kunci biar praktis", bahkan di
+localhost.
 
-- Token dibuat sekali dan disimpan di `~/.trading-dashboard-token` (chmod 600).
-  Bisa ditimpa lewat `DASH_TOKEN=...`.
-- Server mencetak tautan lengkap `http://127.0.0.1:8787/?t=<token>` saat start.
-- Membuka tautan itu memindahkan token ke cookie `HttpOnly` lalu **membersihkan
-  URL**, supaya token tidak menetap di riwayat browser dan tidak ikut tersalin
-  saat alamatnya dibagikan.
-- Tanpa token, semua endpoint membalas `401`. Header `X-Robots-Tag: noindex` dan
-  `Referrer-Policy: no-referrer` selalu dikirim.
+### Pasang kredensial (wajib sebelum pakai)
 
-Saat `--tunnel`, port tetap terikat ke `127.0.0.1`; `cloudflared` berjalan di
-mesin yang sama dan menyambung keluar, jadi tidak ada port yang dibuka ke
-jaringan. URL `trycloudflare.com` berganti tiap kali tunnel dijalankan ulang.
+```bash
+python3 setup_auth.py            # tanya email & password, tidak ditampilkan
+python3 setup_auth.py --status   # lihat sudah terpasang atau belum
+```
 
-**Jangan bagikan tautan yang mengandung `?t=`** — itu setara memberikan akses
-baca penuh ke akun.
+Password **tidak pernah disimpan** — yang tersimpan hanya turunan scrypt
+(N=2¹⁵, r=8, ±67 ms per percobaan) beserta garam acak di
+`~/.trading-dashboard-auth`, chmod 600, di luar repo. Password juga tidak
+diterima lewat argumen perintah, karena argumen terbaca oleh `ps` dan tersimpan
+di riwayat shell.
+
+### Lapisan pertahanan
+
+| Lapisan | Isinya |
+|---|---|
+| Login | scrypt + garam acak; email dan password dibandingkan dengan `compare_digest` sehingga waktu jawab tidak membocorkan tebakan yang hampir benar |
+| Sesi | ID acak 32 byte, **hanya di memori** — tidak ada berkas sesi yang bisa dicuri, restart server memutus semua sesi |
+| Cookie | `HttpOnly` + `SameSite=Strict` + `Secure` otomatis saat lewat HTTPS |
+| Anti brute-force | 5 kali salah → alamat dikunci, waktu kunci **berlipat dua** tiap ronde berikutnya (60 s → 1 jam). Selama terkunci, password benar pun ditolak |
+| IP asli | Dibaca dari `CF-Connecting-IP`; tanpa ini seluruh dunia terhitung `127.0.0.1` di balik tunnel dan penguncian jadi tidak berarti |
+| CSP | `default-src 'self'` penuh — tidak ada skrip/gaya inline di halaman ini, jadi skrip suntikan tidak akan dieksekusi dan data tidak bisa dikirim ke domain lain |
+| Header | `X-Frame-Options: DENY`, `nosniff`, `no-referrer`, `noindex`, `Permissions-Policy` |
+| Batas body | Permintaan login di atas 4 KB langsung ditolak |
+| Metode | Hanya `GET` dan `POST`; `POST` hanya melayani `/login` dan `/logout` — **tidak pernah** order |
+
+### Akses untuk skrip
+
+`curl`/cron memakai token acak 32 byte, bukan password:
+
+```bash
+curl -H "Authorization: Bearer $(cat ~/.trading-dashboard-token)" \
+     http://127.0.0.1:8787/api/akun
+```
+
+Ganti token kapan saja dengan `python3 setup_auth.py --reset-token`.
+
+### Saat di-tunnel
+
+Port tetap terikat ke `127.0.0.1`; `cloudflared` berjalan di mesin yang sama dan
+menyambung keluar, jadi tidak ada port yang dibuka ke jaringan. URL
+`trycloudflare.com` berganti tiap kali tunnel dijalankan ulang.
+
+Yang **masih** perlu Anda jaga sendiri: password yang kuat (12+ karakter, ada
+simbol, bukan pola "kata + angka"), dan jangan membuka dashboard di komputer
+yang tidak Anda percayai.
 
 ## Isi halaman
 

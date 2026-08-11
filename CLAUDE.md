@@ -27,16 +27,26 @@ Bahasa kode, komentar, commit, dan jawaban ke pengguna: **Bahasa Indonesia.**
    `risiko_sisa` (posisi) + `risiko_tertunda` (order). Menghapus salah satunya
    membuat plafon 15% terlihat lebih longgar daripada kenyataannya.
 
-4. **Token autentikasi wajib, termasuk di localhost.** Halaman ini memuat isi
-   akun sungguhan. Jangan menambahkan mode "tanpa token untuk memudahkan".
+4. **Autentikasi wajib, termasuk di localhost.** Halaman ini memuat isi akun
+   sungguhan. Jangan menambahkan mode "tanpa login untuk memudahkan", jangan
+   melonggarkan penguncian brute-force, dan jangan melemahkan parameter scrypt.
 
-5. **Jangan commit kunci.** `~/.bybit_keys` dan `~/.trading-dashboard-token`
-   hidup di luar repo dan harus tetap di sana.
+5. **Jangan commit kunci atau password.** `~/.bybit_keys`,
+   `~/.trading-dashboard-auth`, dan `~/.trading-dashboard-token` hidup di luar
+   repo dan harus tetap di sana. Repo ini publik — apa pun yang masuk ke
+   dalamnya dianggap sudah bocor. Password tidak pernah boleh muncul di kode,
+   di dokumentasi, di pesan commit, maupun sebagai argumen perintah.
+
+6. **CSP di server.py sengaja ketat** (`default-src 'self'`). Karena itu tidak
+   boleh ada `<script>` inline, `style="..."` inline, atau aset dari CDN di
+   `web/`. Kalau menambah elemen, pakai kelas CSS, bukan atribut style.
 
 ## Susunan
 
 ```
-server.py              HTTP lokal (stdlib), auth token, API + file statis
+server.py              HTTP lokal (stdlib), login+sesi, API + file statis
+setup_auth.py          CLI pasang/ganti email & password, reset token skrip
+core/auth.py           scrypt, sesi di memori, penguncian brute-force
 core/bybit.py          klien Bybit v5 BACA-SAJA
 core/screening.py      memanggil ~/trading-exec/screener.py per horizon + checklist
 core/trending.py       lonjakan volume & pergerakan 24 jam
@@ -67,12 +77,14 @@ ketergantungan path.
 ## Menjalankan
 
 ```bash
+python3 setup_auth.py    # WAJIB sekali di awal: pasang email + password
 ./run.sh                 # lokal
 ./run.sh --tunnel        # + URL publik Cloudflare
 python3 server.py --no-monitor   # tanpa monitor otomatis
 ```
 
-Server mencetak URL lengkap beserta token. Tanpa token semua permintaan 401.
+Tanpa sesi, `/` dialihkan ke `/login` dan semua `/api/*` membalas 401.
+Untuk skrip: `Authorization: Bearer $(cat ~/.trading-dashboard-token)`.
 
 ## Gaya kode
 

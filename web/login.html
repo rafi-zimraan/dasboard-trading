@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Masuk — Dashboard Trading</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body class="login-body">
+
+<main class="login-wrap">
+  <form class="login-card" method="POST" action="/login" autocomplete="on">
+    <h1 class="login-title">Dashboard Trading</h1>
+    <p class="login-sub">Halaman ini memuat isi akun sungguhan. Masuk dulu.</p>
+
+    <!--PESAN-->
+
+    <label class="field">
+      <span>Email</span>
+      <input type="email" name="email" required autocomplete="username"
+             autocapitalize="none" spellcheck="false" autofocus>
+    </label>
+
+    <label class="field">
+      <span>Password</span>
+      <input type="password" name="password" required autocomplete="current-password">
+    </label>
+
+    <input type="hidden" name="csrf" value="<!--CSRF-->">
+    <button type="submit" class="login-btn">Masuk</button>
+
+    <p class="login-note">
+      Percobaan gagal dibatasi. Setelah 5 kali salah, alamat Anda dikunci
+      sementara dan waktu kuncinya berlipat tiap ronde.
+    </p>
+  </form>
+</main>
+
+</body>
+</html>
