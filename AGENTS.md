@@ -16,12 +16,14 @@ yang secara teknis mudah dilakukan.
 | Aturan | Kenapa |
 |---|---|
 | Server **tidak boleh** mengirim order | Eksekusi hanya lewat `~/trading-exec/order.py` di terminal, yang mewajibkan setup digambar dulu. Tombol "entry" di web menghapus jeda yang justru jadi pengamannya. |
-| Checklist 6 pertanyaan **tidak boleh** dilonggarkan | RR ≥ 1:2 · risiko < 5% ekuitas · total < 15% · SL di luar struktur · likuidasi lebih jauh dari SL · setup punya nama playbook. |
+| Checklist 6 pertanyaan **tidak boleh** dilonggarkan | RR ≥ 1:2 · risiko ≤ 1% ekuitas · total ≤ 3% · SL di luar struktur · likuidasi lebih jauh dari SL · setup punya nama playbook. Plafon diperketat dari 5%/15% pada 17 Ags 2026; sumbernya `PLAFON_TRADE_PCT`/`PLAFON_TOTAL_PCT` di `server.py`. |
 | Risiko **selalu** = posisi berjalan + order menggantung | Order limit yang belum terisi tetap mengunci risiko begitu tersentuh. |
 | Login **selalu** aktif, termasuk localhost | Halaman memuat isi akun. Tidak ada mode "tanpa login biar praktis". Jangan melonggarkan penguncian brute-force atau melemahkan parameter scrypt. |
 | Rahasia **tidak pernah** masuk repo | `~/.bybit_keys`, `~/.trading-dashboard-auth`, `~/.trading-dashboard-token`. Repo ini publik: password tidak boleh muncul di kode, dokumentasi, pesan commit, atau argumen perintah. |
 | CSP ketat **tidak boleh** dilonggarkan | `default-src 'self'`. Jangan tambahkan skrip inline, `style="..."` inline, atau aset CDN — pakai kelas CSS. |
 | Logika screening **tidak boleh** disalin ke repo ini | Satu sumber kebenaran: `~/trading-exec/screener.py`. Dua salinan yang bisa berbeda lebih berbahaya daripada satu ketergantungan path. |
+| Trailing stop **tidak boleh** menggantikan TP struktur | Trailing hanya untuk wilayah tanpa level acuan di atas harga; jaraknya dari lebar konsolidasi M15, bukan ATR; wajib mengunci untung min. $1. Bukti: BTC 19 Ags, trailing $850 = $0,08 vs TP tetap = $1,74. Aturan penuh di `ATURAN-TRAILING.md`. |
+| Proyeksi **selalu** abu-abu putus-putus | Panah harapan yang digambar segagah level teruji akan dipercaya seperti fakta. Palet & bentuk di `GAYA-CHART.md`. |
 
 Kalau sebuah permintaan bertabrakan dengan tabel di atas, **jangan diam-diam
 menurutinya**. Sampaikan tabrakannya, tawarkan jalan yang tidak melanggar.
@@ -80,3 +82,13 @@ Repo ini tidak berdiri sendiri. Butuh `~/trading-exec/`: `screener.py`,
   dipasang di target terjauh; tingkat awal jadi reduce-only limit terpisah.
 - **`data_get_ohlcv` mengabaikan parameter `symbol`** — dia membaca chart aktif.
 - **Akun UTA cross-only** — `switch-isolated` membalas `100028`, itu normal.
+
+## Dokumen aturan terpisah
+
+- **`GAYA-CHART.md`** — palet warna dan bentuk saat menggambar setup. Aturan inti:
+  utuh = sudah terjadi, putus-putus abu-abu = proyeksi.
+- **`ATURAN-TRAILING.md`** — empat syarat trailing stop, termasuk target kunci $1
+  yang ditambahkan 23 Ags 2026.
+
+Baca keduanya sebelum menyentuh `~/trading-exec/plot_setup.py` atau
+`~/trading-exec/pasang_trailing.py`.

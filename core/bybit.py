@@ -133,8 +133,8 @@ def open_orders() -> list[dict]:
         harga = float(o["price"]) if o["price"] != "0" else None
         sl = float(o["stopLoss"]) if o.get("stopLoss") and o["stopLoss"] != "0" else None
         # Order entry yang masih menggantung TETAP membawa risiko: begitu terisi,
-        # jarak ke SL langsung jadi uang. Tidak menghitungnya membuat plafon 15%
-        # terlihat longgar padahal sudah terpakai.
+        # jarak ke SL langsung jadi uang. Tidak menghitungnya membuat plafon
+        # total terlihat longgar padahal sudah terpakai.
         risiko = abs(harga - sl) * float(o["qty"]) if (harga and sl and not o["reduceOnly"]) else 0.0
         out.append({
             "symbol": o["symbol"], "side": o["side"], "type": o["orderType"],

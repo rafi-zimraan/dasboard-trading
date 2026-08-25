@@ -93,12 +93,16 @@ def checklist(setup: dict, equity: float, risiko_usd: float,
         {"q": "SL di luar struktur, bukan angka bulat?",
          "ok": True,
          "detail": f"SL {setup['sl']:.8g} — swing sebelum tembusan ({jarak_sl/setup['entry']*100:.2f}%)"},
-        {"q": "Risiko trade ini di bawah 5% ekuitas?",
-         "ok": r_pct < 5,
-         "detail": f"${risiko_usd:.2f} = {r_pct:.1f}% dari ${equity:.2f}"},
-        {"q": "Total risiko semua posisi di bawah 15%?",
-         "ok": total_pct < 15,
-         "detail": f"{total_pct:.1f}% (termasuk ${risiko_terbuka:.2f} yang sudah berjalan)"},
+        # 17 Ags 2026: plafon turun dari 5%/15% ke 1%/3%. Toleransi 0,05 pp dan
+        # dua desimal mengikuti gerbang di ~/trading-exec/order.py — kalau dua
+        # layar ini menjawab beda untuk setup yang sama, yang dipercaya bukan
+        # yang benar melainkan yang lebih longgar.
+        {"q": "Risiko trade ini maksimal 1% ekuitas?",
+         "ok": r_pct <= 1.05,
+         "detail": f"${risiko_usd:.2f} = {r_pct:.2f}% dari ${equity:.2f}"},
+        {"q": "Total risiko semua posisi maksimal 3%?",
+         "ok": total_pct <= 3.05,
+         "detail": f"{total_pct:.2f}% (termasuk ${risiko_terbuka:.2f} yang sudah berjalan)"},
         {"q": "Harga likuidasi lebih jauh daripada SL?",
          "ok": abs(setup["entry"] - liq) > jarak_sl,
          "detail": f"likuidasi ~{liq:.8g} vs SL {setup['sl']:.8g}"},

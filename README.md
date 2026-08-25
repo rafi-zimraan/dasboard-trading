@@ -89,8 +89,8 @@ python3 ~/trading-exec/order.py SYMBOL side qty lev entry sl tp1 [tp2 ...] --liv
 `order.py` menolak order kalau:
 
 1. **Setup gagal digambar** di TradingView (mis. aplikasinya mati) — order ditolak, bukan ditunda.
-2. **Salah satu dari 6 pertanyaan checklist dijawab TIDAK**: RR < 1:2, risiko ≥ 5% ekuitas,
-   total risiko ≥ 15%, SL terlalu rapat, atau likuidasi lebih dekat daripada SL.
+2. **Salah satu dari 6 pertanyaan checklist dijawab TIDAK**: RR < 1:2, risiko > 1% ekuitas,
+   total risiko > 3%, SL terlalu rapat, atau likuidasi lebih dekat daripada SL.
 
 Tanpa `--live` ia hanya menggambar + menjalankan checklist. Setiap rencana
 dicatat ke `~/trading-exec/trade_plans.json`, termasuk kolom `digambar` — kalau
@@ -101,7 +101,7 @@ merah di tab Jurnal.
 
 Order entry yang belum terisi tetap membawa risiko: begitu terisi, jarak ke SL
 langsung jadi uang. Meter risiko menjumlahkan **posisi berjalan + order
-menggantung**, jadi plafon 15% tidak pernah terlihat lebih longgar dari
+menggantung**, jadi plafon total tidak pernah terlihat lebih longgar dari
 kenyataannya.
 
 ## monitor.py otomatis

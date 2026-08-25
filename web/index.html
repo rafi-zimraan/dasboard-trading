@@ -19,6 +19,7 @@
     <button class="tab" data-view="trending">Trending</button>
     <button class="tab" data-view="jurnal">Jurnal</button>
     <button class="tab" data-view="panduan">Panduan</button>
+    <button class="tab" data-view="peta">Peta</button>
   </nav>
   <div class="meta">
     <span id="last-update">memuat…</span>
@@ -77,7 +78,7 @@
     <div class="card">
       <div class="card-head">
         <h2>Pemakaian risiko</h2>
-        <p class="card-sub">Plafon rumah: 5% per trade, 15% total. Dihitung dari ekuitas hari ini.</p>
+        <p class="card-sub" id="risk-plafon">Plafon rumah dihitung dari ekuitas hari ini.</p>
       </div>
       <div id="risk-meter"></div>
       <div id="risk-note" class="note"></div>
@@ -206,6 +207,17 @@
     <ol class="rules" id="ritual-list"></ol>
     <div class="note" id="ritual-penutup"></div>
   </div>
+</section>
+
+<section class="view" id="view-peta">
+  <div class="card">
+    <div class="card-head">
+      <h2 id="peta-judul">Peta Trader Profesional</h2>
+      <p class="card-sub" id="peta-diperbarui"></p>
+    </div>
+    <p class="peta-tesis" id="peta-tesis"></p>
+  </div>
+  <div id="peta-bagian"><p class="empty">Memuat peta…</p></div>
 </section>
 
 </main>

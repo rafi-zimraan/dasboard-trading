@@ -27,11 +27,49 @@ from urllib.parse import parse_qs, urlparse
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-from core import auth, bybit, monitor_bridge, panduan, screening, trending  # noqa: E402
+from core import auth, bybit, monitor_bridge, panduan, peta, screening, trending  # noqa: E402
 
 WEB = HERE / "web"
 PLANS = Path.home() / "trading-exec" / "trade_plans.json"
 TOKEN = auth.token()
+
+# Plafon risiko rumah, dalam persen ekuitas.
+#
+# RIWAYAT — jangan dihapus, angka-angka ini datang dari uang nyata:
+#   5%/15%  -> 1%/3%   17 Ags 2026: dua SL beruntun memakan $6 dari akun $109.
+#   1%/3%   -> 5,5%/11%  20 Ags 2026, ATAS PERMINTAAN EKSPLISIT RAFI setelah
+#            diperlihatkan seluruh perhitungannya.
+#
+# Kenapa dilonggarkan: Rafi mendefinisikan ulang "1%" dari "1% ekuitas yang
+# dipertaruhkan" menjadi "SL berjarak 1-2% DARI HARGA", dan meminta lot BTC
+# minimal 0,004. Dua permintaan itu menentukan plafonnya secara aritmetika:
+#
+#   BTC 69.331 · SL 2% = $1.386 · qty 0,004 -> rugi $5,54 = 5,14% ekuitas
+#
+# Jadi 5,5% bukan angka pilihan, melainkan konsekuensi. PLAFON_TOTAL 11% = dua
+# trade ukuran penuh, BUKAN tiga: pada ukuran ini tiga posisi berarti 16,5%
+# ekuitas dipertaruhkan sekaligus, lebih longgar daripada plafon 15% yang justru
+# dicabut 17 Ags. Aturan "maks 3 posisi tak searah" karena itu turun jadi maks 2
+# pada ukuran penuh.
+#
+# KONSEKUENSI YANG HARUS DISADARI: pada 5,14% per trade, dua SL beruntun = 10%
+# akun. Sepuluh SL beruntun menghabiskan separuhnya. Pada plafon lama butuh 78.
+#
+# Ditulis SEKALI di sini lalu dikirim ke web/app.js lewat /api/akun. Sebelumnya
+# angka yang sama tertanam terpisah di server.py dan app.js — persis jenis "dua
+# salinan aturan yang bisa berbeda" yang dilarang CLAUDE.md.
+PLAFON_TRADE_PCT = 5.5
+PLAFON_TOTAL_PCT = 11.0
+
+# Jarak SL yang Rafi inginkan, dalam persen HARGA (bukan persen ekuitas).
+# Dipakai analisa.py/order.py untuk menyarankan SL dan menurunkan qty darinya.
+SL_PCT_MIN = 1.0
+SL_PCT_MAKS = 2.0
+
+# Rem harian ikut melebar. Pada -2% lama, satu SL tunggal (5,14%) langsung
+# menutup hari sebelum trade itu selesai dinilai — remnya jadi tidak bermakna.
+# -8% = kira-kira satu setengah trade ukuran penuh.
+REM_HARIAN_PCT = -8.0
 
 
 def akun() -> dict:
@@ -56,9 +94,11 @@ def akun() -> dict:
             "tertunda_usd": risiko_tertunda,
             "terbuka_usd": total,
             "terbuka_pct": total / w["equity"] * 100 if w["equity"] else 0,
-            "plafon_pct": 15.0,
-            "sisa_slot_usd": max(0.0, w["equity"] * 0.15 - total),
-            "maks_per_trade_usd": w["equity"] * 0.05,
+            "plafon_pct": PLAFON_TOTAL_PCT,
+            "plafon_usd": w["equity"] * PLAFON_TOTAL_PCT / 100,
+            "sisa_slot_usd": max(0.0, w["equity"] * PLAFON_TOTAL_PCT / 100 - total),
+            "maks_per_trade_usd": w["equity"] * PLAFON_TRADE_PCT / 100,
+            "maks_per_trade_pct": PLAFON_TRADE_PCT,
         },
     }
 
@@ -106,6 +146,7 @@ ROUTES = {
     "/api/rencana": lambda q: rencana(q.get("horizon", ["harian"])[0]),
     "/api/plans": lambda q: rencana_tersimpan(),
     "/api/aturan": lambda q: aturan(),
+    "/api/peta": lambda q: peta.muat(),
 }
 
 MIME = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",

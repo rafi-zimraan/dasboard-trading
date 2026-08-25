@@ -14,3 +14,7 @@ data/
 panduan.json
 *.token
 .env
+
+# Cadangan bertanggal dari penyuntingan manual — berguna di lokal, sampah di repo.
+*.bak_*
+*.bak

@@ -409,3 +409,14 @@ code {
   .rapor-ket { grid-column: 1 / -1; }
   .pb-baris { grid-template-columns: 1fr; gap: 3px; }
 }
+
+/* ===== tab Peta ===== */
+.peta-tesis {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  max-width: 74ch;
+  border-left: 3px solid var(--series-1);
+  padding-left: 14px;
+}

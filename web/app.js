@@ -149,8 +149,12 @@ async function muatRingkasan() {
     return n;
   };
   t.appendChild(tile('Posisi terbuka', String(a.posisi.length), a.posisi.map(p => p.symbol.replace('USDT', '')).join(' · ') || '—'));
-  t.appendChild(tile('Risiko berjalan', uang(r.terbuka_usd), `${r.terbuka_pct.toFixed(1)}% dari ekuitas (plafon 15%)`, r.terbuka_pct > 15 ? 'neg' : ''));
-  t.appendChild(tile('Maks per trade', uang(r.maks_per_trade_usd), '5% dari ekuitas hari ini'));
+  // Plafon datang dari /api/akun, tidak ditulis ulang di sini. Angka yang
+  // tertanam dua kali akan berbeda suatu hari, dan yang dipercaya biasanya
+  // yang lebih longgar. Dua desimal karena pada plafon 1% "1,0%" bisa berarti
+  // 0,96% atau 1,04% — dua hal berbeda tepat di garis yang sedang dijaga.
+  t.appendChild(tile('Risiko berjalan', uang(r.terbuka_usd), `${r.terbuka_pct.toFixed(2)}% dari ekuitas (plafon ${r.plafon_pct}%)`, r.terbuka_pct > r.plafon_pct ? 'neg' : ''));
+  t.appendChild(tile('Maks per trade', uang(r.maks_per_trade_usd), `${r.maks_per_trade_pct}% dari ekuitas hari ini`));
   t.appendChild(tile('Order aktif', String(a.orders.length), a.orders.filter(o => o.reduce_only).length + ' reduce-only'));
   const s = a.statistik;
   t.appendChild(tile('Winrate', s.total ? s.winrate.toFixed(0) + '%' : '—', `${s.menang}M / ${s.kalah}K dari ${s.total} trade`));
@@ -165,16 +169,24 @@ async function muatRingkasan() {
   gambarKurva(a.kurva);
 
   const rm = $('#risk-meter'); rm.innerHTML = '';
-  rm.appendChild(meter('Total risiko terbuka', r.terbuka_usd, w.equity * 0.15,
-    r.terbuka_pct > 15 ? 'var(--critical)' : r.terbuka_pct > 10 ? 'var(--warning)' : 'var(--good)',
-    `Plafon 15% = ${uang(w.equity * 0.15)}. Sisa ruang ${uang(r.sisa_slot_usd)}.`));
+  // Ambang warna dihitung sebagai rasio terhadap plafon, bukan angka tetap.
+  // Dulu kuning dipatok di 10%: begitu plafon turun ke 3%, meter tidak akan
+  // pernah kuning lagi — ia melompat dari hijau langsung ke merah, dan
+  // peringatan yang paling berguna justru yang hilang.
+  $('#risk-plafon').textContent =
+    `Plafon rumah: ${r.maks_per_trade_pct}% per trade, ${r.plafon_pct}% total. `
+    + 'Dihitung dari ekuitas hari ini.';
+  const rasio = r.plafon_pct ? r.terbuka_pct / r.plafon_pct : 0;
+  rm.appendChild(meter('Total risiko terbuka', r.terbuka_usd, r.plafon_usd,
+    rasio > 1 ? 'var(--critical)' : rasio > 0.67 ? 'var(--warning)' : 'var(--good)',
+    `Plafon ${r.plafon_pct}% = ${uang(r.plafon_usd)}. Sisa ruang ${uang(r.sisa_slot_usd)}.`));
   a.posisi.forEach(p => rm.appendChild(meter(
-    `${p.symbol} (${p.side})`, p.risiko_sisa, w.equity * 0.05,
+    `${p.symbol} (${p.side})`, p.risiko_sisa, r.maks_per_trade_usd,
     p.risiko_sisa === 0 ? 'var(--good)' : 'var(--series-1)',
     p.risiko_sisa === 0 ? 'SL sudah di sisi profit — risiko nol.' : `SL ${harga(p.sl)}`)));
-  $('#risk-note').textContent = r.terbuka_pct > 15
+  $('#risk-note').textContent = r.terbuka_pct > r.plafon_pct
     ? 'LEWAT PLAFON. Tunggu satu posisi selesai sebelum membuka yang baru.'
-    : `Masih ada ruang ${uang(r.sisa_slot_usd)} sebelum menyentuh plafon 15%.`;
+    : `Masih ada ruang ${uang(r.sisa_slot_usd)} sebelum menyentuh plafon ${r.plafon_pct}%.`;
 
   tabel($('#pos-table'),
     ['Simbol', 'Arah', 'Ukuran', 'Entry', 'Mark', 'PnL', '%', 'SL', 'Risiko sisa', 'Likuidasi'],
@@ -478,6 +490,36 @@ async function muatPanduan() {
   $('#ritual-penutup').textContent = d.ritual_penutup || '';
 }
 
+/* ================= peta ================= */
+async function muatPeta() {
+  let d;
+  try { d = await ambil('/api/peta'); }
+  catch (e) { $('#peta-bagian').innerHTML = `<p class="err">${e.message}</p>`; return; }
+  if (d.error) { $('#peta-bagian').innerHTML = `<p class="err">${d.error}</p>`; return; }
+
+  $('#peta-judul').textContent = d.judul || 'Peta Trader Profesional';
+  $('#peta-diperbarui').textContent = d.diperbarui || '';
+  $('#peta-tesis').textContent = d.tesis || '';
+
+  const wrap = $('#peta-bagian'); wrap.innerHTML = '';
+  (d.bagian || []).forEach(bg => {
+    const c = el('div', 'card');
+    const head = el('div', 'card-head');
+    head.appendChild(el('h2', null, bg.judul));
+    c.appendChild(head);
+    const ol = el('ol', 'rules');
+    (bg.baris || []).forEach(([k, v]) => {
+      const li = el('li');
+      li.appendChild(el('b', null, k));
+      li.appendChild(el('span', null, v));
+      ol.appendChild(li);
+    });
+    c.appendChild(ol);
+    if (bg.catatan) c.appendChild(el('div', 'note', bg.catatan));
+    wrap.appendChild(c);
+  });
+}
+
 /* ================= kerangka ================= */
 let akunCache = null;
 
@@ -510,6 +552,10 @@ $('#tabs').addEventListener('click', (e) => {
   if (b.dataset.view === 'panduan' && !$('#rapor').dataset.loaded) {
     $('#rapor').dataset.loaded = '1';
     muatPanduan();
+  }
+  if (b.dataset.view === 'peta' && !$('#peta-bagian').dataset.loaded) {
+    $('#peta-bagian').dataset.loaded = '1';
+    muatPeta();
   }
 });
 

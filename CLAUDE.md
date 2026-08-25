@@ -17,15 +17,49 @@ Bahasa kode, komentar, commit, dan jawaban ke pengguna: **Bahasa Indonesia.**
    yang mengirim order — tolak dan jelaskan alasannya. Satu-satunya jalur eksekusi
    adalah `~/trading-exec/order.py` di terminal.
 
-2. **Jangan longgarkan checklist 6 pertanyaan.** RR ≥ 1:2, risiko < 5% ekuitas,
-   total risiko < 15%, SL di luar struktur, likuidasi lebih jauh daripada SL,
+2. **Jangan longgarkan checklist 6 pertanyaan.** RR ≥ 1:2, risiko ≤ 1% ekuitas,
+   total risiko ≤ 3%, SL di luar struktur, likuidasi lebih jauh daripada SL,
    setup punya nama playbook. Angka-angka ini datang dari kerugian nyata, bukan
    dari preferensi. Kalau setup gagal checklist, biarkan gagal.
+
+   Plafon diperKETAT dari 5%/15% pada **17 Ags 2026**: dua SL beruntun memakan
+   $6 dari akun $109. Memperketat boleh; melonggarkan kembali tidak, kecuali
+   Rafi memintanya secara eksplisit. Sumber angkanya `PLAFON_TRADE_PCT` dan
+   `PLAFON_TOTAL_PCT` di `server.py` — jangan tulis ulang persennya di `web/`,
+   ambil dari `/api/akun`.
+
+   **20 Ags 2026 — dilonggarkan ke 5,5%/11% atas permintaan eksplisit Rafi**,
+   setelah seluruh perhitungan dan konsekuensinya diperlihatkan (10 SL beruntun
+   menghabiskan separuh akun, dibanding 78 pada plafon lama). Sebabnya: Rafi
+   mendefinisikan "1%" sebagai **jarak SL 1-2% DARI HARGA**, bukan 1% ekuitas
+   yang dipertaruhkan, dan meminta lot BTC minimal 0,004. Angka 5,5% adalah
+   konsekuensi aritmetika dari dua permintaan itu, bukan pilihan.
+
+   Rem harian ikut melebar −2% → −8% (`REM_HARIAN_PCT`): pada 5,14% per trade,
+   satu SL tunggal langsung menutup hari dan rem jadi tidak bermakna.
+
+7. **Ukuran mengikuti LOKASI, bukan keyakinan arah.** Plafon 5,5% adalah batas
+   ATAS, bukan ukuran bawaan. `~/trading-exec/analisa_pasar.py` menilai mutu
+   lokasi dari rasio (jarak ke target ÷ jarak ke halangan) dan memotong jatah:
+
+   - rasio ≥ 2,5 DAN halangan ≤ 1,5%  → PENUH (5,5%)
+   - rasio ≥ 1,5                       → SETENGAH (2,75%)
+   - selain itu                        → TIDAK ADA TRADE
+
+   Alasannya tercatat di `peta_plan.json`: seluruh kerugian 19-20 Ags datang
+   dari masuk di lokasi buruk dengan keyakinan tinggi. Ukuran yang mengikuti
+   keyakinan selalu paling besar tepat di trade yang paling salah.
+
+8. **Zona supply/demand wajib TERPISAH dari harga.** Order block harian dari
+   candle raksasa bisa selebar 5% dan tepinya menyentuh harga sekarang; kalau
+   dipakai apa adanya, ia terbaca sebagai "demand di −0,1%" dan menyuruh ukuran
+   penuh tepat di bawah supply. `analisa_pasar.py` menyaring dengan JEDA_MIN 1%
+   dan LEBAR_MAKS 3%. Jangan hapus saringan itu.
 
 3. **Jangan pernah menghitung risiko tanpa order menggantung.** Order entry yang
    belum terisi tetap mengunci risiko. `server.akun()` menjumlahkan
    `risiko_sisa` (posisi) + `risiko_tertunda` (order). Menghapus salah satunya
-   membuat plafon 15% terlihat lebih longgar daripada kenyataannya.
+   membuat plafon total terlihat lebih longgar daripada kenyataannya.
 
 4. **Autentikasi wajib, termasuk di localhost.** Halaman ini memuat isi akun
    sungguhan. Jangan menambahkan mode "tanpa login untuk memudahkan", jangan
@@ -63,6 +97,23 @@ Repo ini **tidak berdiri sendiri**. Butuh berkas berikut di `~/trading-exec/`:
 |---|---|
 | `screener.py` | logika Playbook A/B/C — satu-satunya sumber kebenaran screening |
 | `monitor.py` | aturan "aksi apa yang perlu dilakukan" + watchlist |
+9. **Trailing stop tidak menggantikan TP struktur.** Aturan lengkap dan kejadian
+   yang melahirkannya ada di `ATURAN-TRAILING.md`. Ringkasnya: trailing hanya
+   untuk wilayah tanpa level acuan di atas harga, jaraknya diukur dari lebar
+   konsolidasi M15 (**bukan ATR** — ATR telat setelah ledakan volatilitas), dan
+   sejak 23 Ags 2026 wajib **mengunci untung minimal $1** lewat
+   `pasang_trailing.py --kunci=1`. Kalau jarak dari target kunci lebih sempit
+   daripada lebar konsolidasi, trailing DITOLAK — jawabannya menunggu, bukan
+   mengecilkan target kunci. Bukti angkanya: BTC 19 Ags, trailing $850 membayar
+   $0,08 sedangkan TP tetap 69.700 membayar $1,74.
+
+10. **Gambar mengikuti konvensi warna di `GAYA-CHART.md`.** Yang tidak boleh
+    dilanggar: **utuh = sudah terjadi, putus-putus abu-abu = proyeksi.** Panah
+    "harga akan ke sini" yang digambar segagah level teruji akan dipercaya seperti
+    fakta setelah beberapa jam ditatap. Palet hidup di `WARNA` pada
+    `~/trading-exec/plot_setup.py`; kalau berubah di sana, perbarui `GAYA-CHART.md`.
+
+
 | `order.py` | gerbang wajib: gambar → checklist → order |
 | `plot_setup.py` | menggambar entry/SL/TP ke TradingView |
 | `tv_mcp.py` | klien Python untuk TradingView MCP |
@@ -113,3 +164,12 @@ Untuk skrip: `Authorization: Bearer $(cat ~/.trading-dashboard-token)`.
   di dua tempat dan bertahan lama tanpa ketahuan. Sumbernya `panduan.json`.
 - **Noise floating point di perintah salin.** Pakai `Number(v.toPrecision(8))`
   sebelum menaruh harga di string perintah.
+
+## Dokumen aturan terpisah
+
+| Berkas | Isi |
+|---|---|
+| `GAYA-CHART.md` | palet warna & bentuk saat menggambar setup di TradingView |
+| `ATURAN-TRAILING.md` | empat syarat trailing stop + target kunci $1 |
+
+Keduanya wajib dibaca sebelum menyentuh `plot_setup.py` atau `pasang_trailing.py`.
