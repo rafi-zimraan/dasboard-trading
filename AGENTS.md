@@ -22,7 +22,8 @@ yang secara teknis mudah dilakukan.
 | Rahasia **tidak pernah** masuk repo | `~/.bybit_keys`, `~/.trading-dashboard-auth`, `~/.trading-dashboard-token`. Repo ini publik: password tidak boleh muncul di kode, dokumentasi, pesan commit, atau argumen perintah. |
 | CSP ketat **tidak boleh** dilonggarkan | `default-src 'self'`. Jangan tambahkan skrip inline, `style="..."` inline, atau aset CDN — pakai kelas CSS. |
 | Logika screening **tidak boleh** disalin ke repo ini | Satu sumber kebenaran: `~/trading-exec/screener.py`. Dua salinan yang bisa berbeda lebih berbahaya daripada satu ketergantungan path. |
-| Trailing stop **tidak boleh** menggantikan TP struktur | Trailing hanya untuk wilayah tanpa level acuan di atas harga; jaraknya dari lebar konsolidasi M15, bukan ATR; wajib mengunci untung min. $1. Bukti: BTC 19 Ags, trailing $850 = $0,08 vs TP tetap = $1,74. Aturan penuh di `ATURAN-TRAILING.md`. |
+| Untung mengambang $2 → trailing `--kunci=1` **wajib dipasang** | Perintah berdiri sejak 27 Ags 2026. Jangan tunggu diminta, jangan bertanya dulu. Bukti: EDENUSDT puncak 0,07319 (+$4,65) keluar manual 0,06053 (+$1,02) — **$3,64 menguap**; trailing akan keluar di 0,06971 = +$3,65. Tangga: ≥$2→$1 · ≥$4→$2 · ≥$6→$3. |
+| TP **tidak boleh** dipindah menjauh dari struktur demi memberi ruang trailing | Ini kesalahan 19 Ags: TP 69.700 → 71.985 + trailing $850 = $0,08, padahal TP tetap membayar $1,74. TP duduk di struktur, trailing dipasang **di sampingnya** — Bybit mengizinkan keduanya sekaligus. Jarak trailing dari lebar konsolidasi M15, bukan ATR. Aturan penuh di `ATURAN-TRAILING.md`. |
 | Proyeksi **selalu** abu-abu putus-putus | Panah harapan yang digambar segagah level teruji akan dipercaya seperti fakta. Palet & bentuk di `GAYA-CHART.md`. |
 
 Kalau sebuah permintaan bertabrakan dengan tabel di atas, **jangan diam-diam
@@ -87,8 +88,9 @@ Repo ini tidak berdiri sendiri. Butuh `~/trading-exec/`: `screener.py`,
 
 - **`GAYA-CHART.md`** — palet warna dan bentuk saat menggambar setup. Aturan inti:
   utuh = sudah terjadi, putus-putus abu-abu = proyeksi.
-- **`ATURAN-TRAILING.md`** — empat syarat trailing stop, termasuk target kunci $1
-  yang ditambahkan 23 Ags 2026.
+- **`ATURAN-TRAILING.md`** — syarat trailing stop dan tangga target kunci.
+  Aturan inti sejak 27 Ags 2026: untung mengambang $2 → pasang trailing
+  `--kunci=1` tanpa diminta; TP tetap di struktur, trailing di sampingnya.
 
 Baca keduanya sebelum menyentuh `~/trading-exec/plot_setup.py` atau
 `~/trading-exec/pasang_trailing.py`.

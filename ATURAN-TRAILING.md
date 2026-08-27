@@ -1,57 +1,115 @@
 # ATURAN-TRAILING.md
 
-Kapan trailing stop boleh dipakai, dan berapa jaraknya. Dipaksakan oleh
-`~/trading-exec/pasang_trailing.py` — skrip itu **menolak** kalau syaratnya
-tidak terpenuhi, dan penolakan itu memang tujuannya.
+Kapan trailing stop dipakai, dan berapa jaraknya. Dipaksakan oleh
+`~/trading-exec/pasang_trailing.py`.
 
-## Kejadian yang melahirkan aturan ini
+## Perubahan 27 Agustus 2026 — trailing jadi BAWAAN, bukan pengecualian
 
-19 Agustus 2026, long BTCUSDT 0,001 @ 67.956,8. Rencana awal TP2 69.700, tepat
-di bawah swing high harian 69.990. Atas permintaan TP lebih tinggi, TP dinaikkan
-ke 71.985 **dan** ditambahkan trailing $850 yang aktif seketika.
+Sampai 26 Ags dokumen ini berbunyi *"trailing hanya untuk wilayah tanpa level
+acuan di atas harga"*, dan skripnya menolak secara bawaan. **Dibalik atas
+permintaan eksplisit Rafi**, setelah EDENUSDT memperlihatkan harga dari aturan
+lama.
 
-| Yang dijalankan | Hasil |
+### Bukti yang membalikkannya
+
+EDENUSDT long, entry 0,05698, tranche terakhir ~287 unit.
+
+| | Harga | Hasil |
+|---|---|---|
+| Puncak 27/08 00:00 | 0,07319 | +$4,65 mengambang |
+| Keluar manual 27/08 10:17 | 0,06053 | **+$1,02 diterima** |
+| **Yang menguap** | | **−$3,64** |
+
+Kalau trailing dipasang saat untung menyentuh $2 (harga ~0,0640) dengan
+`--kunci=1`, jaraknya $1 ÷ 287 = 0,00348. Stop mengikuti puncak:
+0,07319 − 0,00348 = 0,06971 → **+$3,65**.
+
+Satu perintah yang tidak dijalankan = **$2,63**.
+
+### Kenapa ini TIDAK bertabrakan dengan pelajaran 19 Agustus
+
+19 Ags: BTC long 67.956,8. TP2 rencana 69.700, tepat di bawah swing high harian
+69.990. TP lalu dinaikkan ke 71.985 **dan** ditambah trailing $850. Hasil
++$0,08; TP tetap 69.700 akan membayar +$1,74.
+
+Kesalahannya **bukan** trailing. Kesalahannya **memindahkan TP menjauh dari
+struktur**. Kalau TP dibiarkan di 69.700 dan trailing tetap dipasang, urutannya:
+high mencapai 70.053 → TP 69.700 kena LEBIH DULU → +$1,74. Trailing tidak pernah
+menyala. Hasilnya identik dengan rencana awal.
+
+Jadi aturan barunya bukan "trailing menggantikan TP" — itu tetap terlarang.
+Aturan barunya: **TP tetap di struktur, trailing dipasang di sampingnya.**
+
+- Harga lari ke target → **TP** yang bayar.
+- Harga mentok lalu balik → **trailing** yang bayar.
+
+Tidak ada jalur di mana pasangan ini lebih buruk daripada TP sendirian.
+
+## Aturan yang berlaku sekarang
+
+> **Begitu untung mengambang sebuah posisi menyentuh $2, pasang trailing
+> dengan `--kunci=1`. Tanpa bertanya lagi, tanpa menunggu diminta.**
+
+```bash
+python3 ~/trading-exec/pasang_trailing.py <SIMBOL> --kunci=1 --tanpa-target --live
+```
+
+Tangga kuncinya:
+
+| Untung mengambang | Kunci |
 |---|---|
-| Trailing $850 aktif seketika | **+$0,08** |
-| Trailing dengan pemicu 68.850 | +$0,19 |
-| **TP tetap 69.700 (rencana awal)** | **+$1,74** — high mencapai 70.053, TP2 KENA |
+| < $2 | belum — biarkan SL awal yang bekerja |
+| ≥ $2 | $1 |
+| ≥ $4 | $2 |
+| ≥ $6 | $3 |
 
-Bahkan konfigurasi trailing yang "benar" kalah telak. **Konsepnya yang salah,
-bukan setelannya.** Trailing $850 duduk di dalam lebar konsolidasi normal
-($700–900), jadi pasti kena pada pullback pertama berapa pun pemicunya.
+Polanya: **kunci ≈ separuh untung mengambang.** Separuh, bukan seluruhnya —
+stop yang mengunci hampir semua untung duduk terlalu dekat harga dan tersapu
+napas normal pasar.
 
-## Empat syarat, semuanya wajib
+**Kenapa tidak dipasang tepat di +$1.** Aritmetika, bukan pilihan:
 
-1. **Untung mengambang ≥ $2.** Malam itu untung tertinggi selama posisi hidup
-   hanya $0,93 — dengan ambang ini trailing tidak akan pernah menyala dan TP
-   tetap yang berjalan.
+```
+jarak = harga_sekarang − (entry + kunci / qty)
+```
 
-2. **Tidak ada target struktur di depan harga.** Kalau ada swing high yang bisa
-   ditunjuk, TP tetap di situ. Trailing hanya untuk wilayah tanpa acuan di atas
-   harga. Butuh konfirmasi manual: `--tanpa-target`.
+Pada untung tepat $1 dengan kunci $1, jaraknya **nol** — stop duduk persis di
+harga sekarang dan kena seketika. Untung harus cukup jauh di atas target kunci
+supaya ada ruang. $2 adalah ambang terkecil yang menyisakan ruang itu, dan
+itulah `AMBANG_USD` di skrip.
 
-3. **Jarak ≥ lebar konsolidasi terakhir**, diukur dari 24 bar M15 — **bukan dari
-   ATR**. ATR selalu telat memperbarui diri setelah ledakan volatilitas: malam itu
-   ATR H1 masih 254 padahal bar M5 bergerak $2.828.
+## Empat syarat — status setelah 27 Ags
 
-4. **Trailing wajib MENGUNCI untung minimal $1** *(ditambahkan 23 Ags 2026 atas
-   permintaan Rafi)*. Jaraknya dihitung mundur dari target kunci, bukan ditebak:
+1. **Untung mengambang ≥ $2.** TETAP. Di bawah ini trailing tidak menyala dan
+   SL awal yang bekerja.
 
-   ```
-   stop_kunci = entry + (kunci / qty)          # long
-   jarak      = harga_sekarang − stop_kunci
-   ```
+2. ~~Tidak ada target struktur di depan harga.~~ **DICABUT sebagai penghalang.**
+   Adanya swing high tidak lagi membatalkan trailing — TP dibiarkan di swing
+   high itu dan trailing dipasang di sampingnya. Flag `--tanpa-target` sekarang
+   dipakai rutin, bukan sebagai pengakuan istimewa.
 
-   Kalau `jarak` hasil hitungan itu lebih **sempit** daripada lebar konsolidasi,
-   trailing **ditolak** — artinya harga belum cukup jauh dari entry untuk bisa
-   mengunci sebanyak itu tanpa langsung tersapu.
-   **Jawabannya menunggu, bukan mengecilkan target kunci.**
+3. **Jarak ≥ lebar konsolidasi terakhir**, diukur dari 24 bar M15 — **bukan
+   ATR**. TETAP, dan setelah syarat 2 dicabut inilah penjaga utamanya. ATR selalu
+   telat setelah ledakan volatilitas: 19 Ags ATR H1 masih 254 padahal bar M5
+   bergerak $2.828.
+
+4. **Wajib mengunci untung minimal $1.** TETAP. Kalau jarak hasil hitungan lebih
+   **sempit** daripada lebar konsolidasi, trailing **ditolak** — harga belum
+   cukup jauh dari entry. **Jawabannya menunggu, bukan mengecilkan target kunci.**
+
+## Yang tetap terlarang
+
+- **Menaikkan TP menjauh dari struktur supaya trailing punya ruang.** Ini
+  kesalahan 19 Ags, dan pencabutan syarat 2 tidak menyentuhnya. TP duduk di
+  swing high; trailing yang menyesuaikan diri, bukan sebaliknya.
+- **Jarak trailing lebih sempit daripada lebar konsolidasi M15.** Stop seperti
+  itu kena bukan karena trennya berakhir, tapi karena pasar bernapas.
 
 ## Pemakaian
 
 ```bash
 python3 ~/trading-exec/pasang_trailing.py LTCUSDT                        # periksa saja
-python3 ~/trading-exec/pasang_trailing.py LTCUSDT --kunci=1              # dry-run, jarak dari kunci $1
+python3 ~/trading-exec/pasang_trailing.py LTCUSDT --kunci=1              # dry-run
 python3 ~/trading-exec/pasang_trailing.py LTCUSDT --kunci=1 --tanpa-target --live
 python3 ~/trading-exec/pasang_trailing.py BTCUSDT --jarak=850 --live     # jarak manual
 ```
@@ -61,19 +119,12 @@ Urutan wewenang jarak: `--jarak` manual > `--kunci` > lebar konsolidasi.
 ## Trailing TIDAK menghapus TP dan SL
 
 Di Bybit v5, `trailingStop` hidup berdampingan dengan `stopLoss` dan
-`takeProfit`. Contoh nyata LTCUSDT 23 Ags 2026:
+`takeProfit`. Contoh nyata BTCUSDT 27 Ags 2026, sesudah aturan baru:
 
 ```
-avgPrice 51.46 · trailingStop 0.79 · stopLoss 49.92 · takeProfit 56.20
+avgPrice 77704 · trailingStop 1014 · stopLoss 76150 · takeProfit 82811
 ```
 
-Stop mengikuti 0,79 di bawah harga tertinggi, SL 49,92 tetap jadi jaring bawah,
-TP 56,20 tetap jadi target atas. Yang perlu diwaspadai bukan TP hilang, tapi
-**trailing kena lebih dulu daripada TP** — itulah yang terjadi pada BTC.
-
-## Yang mengalahkan trailing, hampir selalu
-
-TP bertingkat + geser SL ke BE setelah TP1. Lihat aturan TP1 ≥ 2R: dengan tiga
-tingkat, "TP1 cair lalu harga balik" baru impas kalau TP1 berada di 2R. Trailing
-dipakai ketika **tidak ada** level di atas yang bisa ditunjuk — bukan sebagai
-pengganti target yang sudah jelas.
+Stop mengikuti 1.014 di bawah harga tertinggi, SL 76.150 tetap jadi jaring
+bawah, TP 82.811 tetap jadi atap. Inilah bentuk yang dimaksud aturan baru:
+ketiganya sekaligus.

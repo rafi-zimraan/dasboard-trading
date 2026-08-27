@@ -56,6 +56,41 @@ Bahasa kode, komentar, commit, dan jawaban ke pengguna: **Bahasa Indonesia.**
    penuh tepat di bawah supply. `analisa_pasar.py` menyaring dengan JEDA_MIN 1%
    dan LEBAR_MAKS 3%. Jangan hapus saringan itu.
 
+9. **Kunci untung otomatis: untung mengambang $2 → pasang trailing `--kunci=1`.**
+   Ini **perintah berdiri**, bukan usulan. Begitu sebuah posisi menyentuh untung
+   mengambang $2, pasang trailing tanpa menunggu diminta dan tanpa bertanya:
+
+   ```bash
+   python3 ~/trading-exec/pasang_trailing.py <SIMBOL> --kunci=1 --tanpa-target --live
+   ```
+
+   Tangganya: ≥$2 → kunci $1 · ≥$4 → kunci $2 · ≥$6 → kunci $3. Polanya kunci ≈
+   separuh untung mengambang. Tidak bisa dipasang tepat di +$1: jarak =
+   harga − (entry + kunci/qty), jadi pada untung $1 dengan kunci $1 jaraknya nol
+   dan stop kena seketika.
+
+   **Diubah 27 Ags 2026 atas permintaan eksplisit Rafi.** Sebelumnya syarat
+   "tidak ada target struktur di depan harga" memblokir trailing secara bawaan.
+   Syarat itu **dicabut sebagai penghalang**. Buktinya EDENUSDT: puncak 0,07319
+   (+$4,65 mengambang) keluar manual di 0,06053 (+$1,02) — **$3,64 menguap**.
+   Trailing `--kunci=1` yang dipasang di untung $2 akan keluar di 0,06971 → +$3,65.
+
+   Yang **tetap** terlarang, dan tidak tersentuh oleh perubahan ini: menaikkan TP
+   menjauh dari struktur supaya trailing punya ruang. Itu kesalahan 19 Ags —
+   TP dipindah 69.700 → 71.985 lalu ditambah trailing $850, hasilnya $0,08
+   padahal TP tetap membayar $1,74. **TP duduk di struktur, trailing dipasang di
+   sampingnya.** Bybit mengizinkan `trailingStop` + `stopLoss` + `takeProfit`
+   hidup bersamaan; harga lari ke target → TP yang bayar, harga balik → trailing
+   yang bayar. Jarak trailing tetap diukur dari lebar konsolidasi M15 (**bukan
+   ATR** — ATR telat setelah ledakan volatilitas). Aturan penuh:
+   `ATURAN-TRAILING.md`.
+
+10. **Gambar mengikuti konvensi warna di `GAYA-CHART.md`.** Yang tidak boleh
+    dilanggar: **utuh = sudah terjadi, putus-putus abu-abu = proyeksi.** Panah
+    "harga akan ke sini" yang digambar segagah level teruji akan dipercaya seperti
+    fakta setelah beberapa jam ditatap. Palet hidup di `WARNA` pada
+    `~/trading-exec/plot_setup.py`; kalau berubah di sana, perbarui `GAYA-CHART.md`.
+
 3. **Jangan pernah menghitung risiko tanpa order menggantung.** Order entry yang
    belum terisi tetap mengunci risiko. `server.akun()` menjumlahkan
    `risiko_sisa` (posisi) + `risiko_tertunda` (order). Menghapus salah satunya
@@ -97,23 +132,6 @@ Repo ini **tidak berdiri sendiri**. Butuh berkas berikut di `~/trading-exec/`:
 |---|---|
 | `screener.py` | logika Playbook A/B/C — satu-satunya sumber kebenaran screening |
 | `monitor.py` | aturan "aksi apa yang perlu dilakukan" + watchlist |
-9. **Trailing stop tidak menggantikan TP struktur.** Aturan lengkap dan kejadian
-   yang melahirkannya ada di `ATURAN-TRAILING.md`. Ringkasnya: trailing hanya
-   untuk wilayah tanpa level acuan di atas harga, jaraknya diukur dari lebar
-   konsolidasi M15 (**bukan ATR** — ATR telat setelah ledakan volatilitas), dan
-   sejak 23 Ags 2026 wajib **mengunci untung minimal $1** lewat
-   `pasang_trailing.py --kunci=1`. Kalau jarak dari target kunci lebih sempit
-   daripada lebar konsolidasi, trailing DITOLAK — jawabannya menunggu, bukan
-   mengecilkan target kunci. Bukti angkanya: BTC 19 Ags, trailing $850 membayar
-   $0,08 sedangkan TP tetap 69.700 membayar $1,74.
-
-10. **Gambar mengikuti konvensi warna di `GAYA-CHART.md`.** Yang tidak boleh
-    dilanggar: **utuh = sudah terjadi, putus-putus abu-abu = proyeksi.** Panah
-    "harga akan ke sini" yang digambar segagah level teruji akan dipercaya seperti
-    fakta setelah beberapa jam ditatap. Palet hidup di `WARNA` pada
-    `~/trading-exec/plot_setup.py`; kalau berubah di sana, perbarui `GAYA-CHART.md`.
-
-
 | `order.py` | gerbang wajib: gambar → checklist → order |
 | `plot_setup.py` | menggambar entry/SL/TP ke TradingView |
 | `tv_mcp.py` | klien Python untuk TradingView MCP |
