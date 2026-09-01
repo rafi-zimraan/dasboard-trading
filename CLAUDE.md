@@ -136,6 +136,9 @@ Repo ini **tidak berdiri sendiri**. Butuh berkas berikut di `~/trading-exec/`:
 | `plot_setup.py` | menggambar entry/SL/TP ke TradingView |
 | `tv_mcp.py` | klien Python untuk TradingView MCP |
 | `bybit_trade.py` | eksekutor order (dipanggil oleh order.py) |
+| `cmc.py` | lapis fundamental CoinMarketCap — pasokan beredar, FDV, perputaran |
+| `llama.py` | DefiLlama — TVL protokol & jadwal unlock (pelengkap `cmc.py`) |
+| `penjaga_trailing.py` | menjalankan perintah berdiri trailing $2 otomatis |
 
 Plus `~/.bybit_keys` berisi `KEY=` dan `SECRET=`, dan `~/trading-exec/panduan.json`
 berisi aturan panduan (playbook, checklist, fase, ambang lima angka, `modal_awal`,
