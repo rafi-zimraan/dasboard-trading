@@ -4,9 +4,22 @@ Panduan untuk Claude Code saat bekerja di repo ini.
 
 ## Apa ini
 
-Dashboard pantauan trading Bybit + screening setup, dengan satu aturan yang
-dipaksakan secara teknis: **tidak ada order yang boleh dipasang sebelum setup-nya
-digambar di TradingView.** Target akun: $85 → $1.000.
+Dashboard pantauan trading **multi-aset** + screening setup, dengan satu aturan
+yang dipaksakan secara teknis: **tidak ada order yang boleh dipasang sebelum
+setup-nya digambar di TradingView.** Target akun kripto: $85 → $1.000.
+
+Tiga kelas aset, dan **jalur eksekusinya berbeda-beda** — ini bukan detail,
+ini yang membentuk desainnya:
+
+| Aset | Data | Eksekusi | Catatan |
+|---|---|---|---|
+| **Kripto** (Bybit) | API resmi | `~/trading-exec/order.py` | satu-satunya yang bisa otomatis |
+| **Saham** (BEI) | pihak ketiga | **manual di aplikasi broker** | **tidak ada broker RI yang punya API ritel** |
+| **Forex** | belum ditetapkan | belum ditetapkan | belum dikerjakan |
+
+Menambah kelas aset **tidak berarti menambah jalur order**. Kalau sebuah aset
+tidak punya jalur eksekusi yang aman, ia tetap baca-saja — itu fitur, bukan
+kekurangan yang perlu diakali.
 
 Bahasa kode, komentar, commit, dan jawaban ke pengguna: **Bahasa Indonesia.**
 
@@ -110,19 +123,59 @@ Bahasa kode, komentar, commit, dan jawaban ke pengguna: **Bahasa Indonesia.**
    boleh ada `<script>` inline, `style="..."` inline, atau aset dari CDN di
    `web/`. Kalau menambah elemen, pakai kelas CSS, bukan atribut style.
 
+11. **Saham BEI: eksekusi SELALU manual, dan itu bukan sementara.** Dicek ke
+    15+ sekuritas (5 Sep 2026) — Stockbit, Ajaib, Mirae, Mandiri, BNI, Indo
+    Premier, BRI Danareksa, Philip, RHB, Sucor, Sinarmas, Trimegah, KISI, MNC:
+    **tidak satu pun menyediakan API ritel**, baik data harga maupun order.
+    Tidak ada MCP.
+
+    Jadi `saham/` hanya boleh MEMBACA dan MENGABARI. Kalau nanti muncul
+    permintaan "tombol beli saham", jawabannya bukan mencari celah — jawabannya
+    tidak ada jalurnya. Library *reverse-engineering* Stockbit/Ajaib di GitHub
+    tidak resmi, rapuh, dan melanggar ToS. **Jangan dipakai.**
+
+    **Jangan pakai scanner TradingView sebagai feed polling.** Endpoint
+    `scanner.tradingview.com` bekerja sempurna (844 emiten, tanpa kunci, 1,6
+    detik) — dan justru karena itu godaannya besar. ToS-nya melarang
+    *"non-display usage"* secara eksplisit; bot alert adalah persis itu. Chart
+    TradingView tetap dipakai untuk MENGGAMBAR dan MELIHAT setup — itu sah.
+    Sumber harga untuk bot: GoAPI.io (kontrak sah) atau Yahoo `.JK`.
+
+12. **Angka aturan bursa jangan ditulis sebagai konstanta.** Batas harga minimum
+    BEI turun Rp50 → Rp1 pada minggu ke-3/4 September 2026; fraksi harga dan
+    ARA/ARB ikut berubah. Ambil `minmov` per emiten dari feed. Kalau terpaksa
+    menyalin sebuah angka, tulis tanggal berlakunya di sebelahnya.
+
+    Ini pelajaran yang sama dengan `modal_awal` yang pernah tertanam $85 di dua
+    tempat dan bertahan lama tanpa ketahuan — bedanya, aturan bursa berubah
+    tanpa memberi tahu siapa pun.
+
 ## Susunan
 
 ```
 server.py              HTTP lokal (stdlib), login+sesi, API + file statis
 setup_auth.py          CLI pasang/ganti email & password, reset token skrip
-core/auth.py           scrypt, sesi di memori, penguncian brute-force
-core/bybit.py          klien Bybit v5 BACA-SAJA
-core/screening.py      memanggil ~/trading-exec/screener.py per horizon + checklist
-core/trending.py       lonjakan volume & pergerakan 24 jam
-core/panduan.py        membaca panduan.json + menilai lima angka
-core/monitor_bridge.py menjalankan ~/trading-exec/monitor.py tiap 5 menit
+core/                  KRIPTO — ada di core/ karena alasan sejarah, bukan desain
+  auth.py                scrypt, sesi di memori, penguncian brute-force
+  bybit.py               klien Bybit v5 BACA-SAJA
+  screening.py           memanggil ~/trading-exec/screener.py + checklist
+  trending.py            lonjakan volume & pergerakan 24 jam
+  panduan.py             membaca panduan.json + menilai lima angka
+  monitor_bridge.py      menjalankan ~/trading-exec/monitor.py tiap 5 menit
+saham/                 SAHAM BEI — mandiri, tidak menyentuh core/
+  SISTEM.md              alur kerja + ritme; baca ini dulu
+  riset/                 laporan bersumber, diberi tanggal
+  data/rencana.json      watchlist + level (DIABAIKAN git — isi akun pribadi)
+  bot/harga.py           lapis data, sumber bisa ditukar
+  bot/penjaga_saham.py   cek level → Telegram
+forex/                 belum dikerjakan
 web/                   index.html · style.css · app.js — tanpa framework, tanpa build
 ```
+
+**Kripto belum dipindah ke `kripto/`** supaya sejajar dengan `saham/`. Itu
+disengaja: `core/` sudah dipakai `server.py` dan berjalan dengan uang sungguhan.
+Merapikan nama tidak sebanding dengan risiko merusaknya. Kalau suatu saat
+dipindah, pindahkan saat tidak ada posisi terbuka.
 
 ## Ketergantungan di luar repo
 
@@ -139,6 +192,8 @@ Repo ini **tidak berdiri sendiri**. Butuh berkas berikut di `~/trading-exec/`:
 | `cmc.py` | lapis fundamental CoinMarketCap — pasokan beredar, FDV, perputaran |
 | `llama.py` | DefiLlama — TVL protokol & jadwal unlock (pelengkap `cmc.py`) |
 | `penjaga_trailing.py` | menjalankan perintah berdiri trailing $2 otomatis |
+| `telegram.py` | pengabar Telegram — dipinjam `saham/bot/penjaga_saham.py` |
+| `setup_telegram.py` | CLI pasang token & chat id Telegram (sekali di awal) |
 
 Plus `~/.bybit_keys` berisi `KEY=` dan `SECRET=`, dan `~/trading-exec/panduan.json`
 berisi aturan panduan (playbook, checklist, fase, ambang lima angka, `modal_awal`,
